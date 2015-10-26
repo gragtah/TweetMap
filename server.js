@@ -114,11 +114,32 @@ io.sockets.on('connection', function (socket) {
   });
 
   socket.on("filter tweets", function (filterKeyword) {
-    console.log('Got keyword for filtering: ' + filterKeyword);
+    console.log('filtering on keyword: ' + filterKeyword);
     keyword = filterKeyword;
+
+    MongoClient.connect(mongoURL, function (err, db) {
+      if (err) throw err;
+      var collection = db.collection('tweets');
+
+      var cursor = collection.find();
+      cursor.each(function (err, mongoTweet) {
+        if (err) {
+          console.log(err); throw err;
+        } else if (mongoTweet !== null){
+            var outputPoint = {"lat": mongoTweet.latitude,"lng": mongoTweet.longitude};
+
+            if (keyword === undefined || keyword === null || RegExp("(^|\\s+)#*" + keyword + "\(\\s+|$)", "i").test(mongoTweet.text)) {
+              var outputPoint = {"lat": mongoTweet.latitude,"lng": mongoTweet.longitude};
+               socket.broadcast.emit("twitter-mongo-load", outputPoint);
+                socket.emit('twitter-mongo-load', outputPoint);
+            }                 
+        }
+      });
+    });
+    
   });
 
   // Signal the client that they are connected and can start receiving tweets
-  console.log("Calling socket.emit connected");
+  console.log("client connected");
   socket.emit("connected");
 });
